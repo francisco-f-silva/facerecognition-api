@@ -32,12 +32,14 @@ app.get('/', (req, res) => {
 });
 
 app.post('/signin', (req, res) => {
+	let counter = -1;
 	const signin = database.users.some(user => {
+		counter++;
 		return req.body.email === user.email 
 			&& req.body.password === user.password;
 	});
 	if (signin) {
-		res.json('success signing in, wohooo');
+		res.json(database.users[counter]);
 	} else {
 		res.status(400).json('error! credentials are not valid!');
 	}
