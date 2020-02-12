@@ -1,8 +1,10 @@
 const express = require('express');
+const cors = require('cors');
 
 const app = express(); //creates server
 
 app.use(express.json()); //parses body of request into json (otherwise when trying to read body we'll get an error)
+app.use(cors()); //allows connection between frontend and backend
 
 const database = {
 	users: [
