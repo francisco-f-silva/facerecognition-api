@@ -1,90 +1,110 @@
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); //allows connection with frontend (security reasons)
+const knex = require('knex'); //SQL query builder (for connection with database)
+const bcrypt = require('bcrypt-nodejs'); //to encrypt the password
+
+const db = knex({
+  client: 'pg',
+  connection: {
+    host : '127.0.0.1',
+    user : 'francisco',
+    password : 'qwerty',
+    database : 'smart-brain'
+  }
+});
 
 const app = express(); //creates server
 
 app.use(express.json()); //parses body of request into json (otherwise when trying to read body we'll get an error)
 app.use(cors()); //allows connection between frontend and backend
 
-const database = {
-	users: [
-		{
-			id: '123',
-			name: 'John',
-			email: 'john@gmail.com',
-			password: 'cookies',
-			entries: 0,
-			joined: new Date()
-		},
-		{
-			id: '124',
-			name: 'Sally',
-			email: 'sally@gmail.com',
-			password: 'bananas',
-			entries: 0,
-			joined: new Date()
-		}
-	]
-};
-
 app.get('/', (req, res) => {
-	res.send(database.users);
+	res.send("this is working");
 });
 
 app.post('/signin', (req, res) => {
-	let counter = -1;
-	const signin = database.users.some(user => {
-		counter++;
-		return req.body.email === user.email 
-			&& req.body.password === user.password;
-	});
-	if (signin) {
-		res.json(database.users[counter]);
-	} else {
-		res.status(400).json('error! credentials are not valid!');
-	}
+	db.select('email', 'hash').from('login')
+		.where('email', '=', req.body.email)
+		.then(loginData => {
+			const isValid = bcrypt.compareSync(req.body.password, loginData[0].hash);
+			if (isValid) {
+				// return user
+				db.select('*').from('users')
+					.where('email', '=', req.body.email)
+					.then(user => res.json(user[0]))
+				;
+			} else {
+				// wrong password
+				res.status(400).json("wrong credentials");
+			}
+		})
+		.catch(err => res.status(400).json("wrong credentials")) //wrong email
+	;
 });
 
 app.post('/register', (req, res) => {
 	const { email, name, password } = req.body;
-	database.users.push({
-		id: '125',
-		name: name,
-		email: email,
-		password: password,
-		entries: 0,
-		joined: new Date()
+	const hash = bcrypt.hashSync(password);
+	db.transaction(trx => {
+		// INSERT INTO login (email, hash) VALUES (...);
+		trx.insert({
+			email: email,
+			hash: hash
+		})
+			.into('login')
+			.returning('email')
+			.then(loginEmail => {
+				// INSERT INTO users (name, email, joined) VALUES (...);
+				return trx('users')
+					.returning('*')
+					.insert({
+						name: name,
+						email: loginEmail[0],
+						joined: new Date()
+					})
+					.then(user => res.json(user[0]))
+				;
+			})
+			.then(trx.commit)
+			.catch(err => {
+				trx.rollback;
+				res.status(400).json('unable to register');
+			})
+		;	
 	});
-	res.json(database.users[database.users.length - 1]);
 });
 
 app.get('/profile/:id', (req, res) => {
 	const { id } = req.params;
-	let found = false;
-	database.users.forEach(user => {
-		if (user.id === id) {
-			found = true;
-			return res.json(user);
-		}
-	});
-	if (!found) {
-		res.status(404).json('not found');
-	}
+	// SELECT * FROM users WHERE id = ...;
+	db.select('*').from('users').where({ id: id })
+		.then(user => {
+			if (user.length) {
+				res.json(user[0]);
+			} else {
+				res.status(404).json('not found');
+			}
+		})
+	;
 });
 
 app.put('/image', (req, res) => {
 	const { id } = req.body;
-	let found = false;
-	database.users.forEach(user => {
-		if (user.id === id) {
-			found = true;
-			user.entries++;
-			return res.json(user.entries);
-		}
-	});
-	if (!found) {
-		res.status(404).json('not found');
-	}
+	// UPDATE users SET entries = entries + 1 WHERE id = ...;
+	db('users')
+		.returning('entries')
+		.where({id}) //same as .where({ id: id }) or as .where('id', '=', 'id')
+		.update({
+			entries: db.raw('entries + 1')
+		})
+		.then(entries => {
+			if (entries.length) {
+				res.json(entries[0]);
+			} else {
+				res.status(404).json('not found');
+			}
+		})
+	;
 });
 
 app.listen(3000, () => {
