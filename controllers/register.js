@@ -30,7 +30,9 @@ const handleRegister = (req, res, db, bcrypt) => {
 				res.status(400).json('unable to register');
 			})
 		;	
-	});
+	})
+		.catch(err => res.status(400).json('unable to work with database'))
+	;
 };
 
 module.exports = {
