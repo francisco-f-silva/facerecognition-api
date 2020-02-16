@@ -26,7 +26,7 @@ const handleImage = (req, res, db) => {
 				return res.status(404).json('not found');
 			}
 		})
-		.catch(res.status(400).json('unable to work with database'))
+		.catch(err => res.status(400).json('unable to work with database'))
 	;
 };
 
