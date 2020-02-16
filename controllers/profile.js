@@ -4,9 +4,9 @@
 	db.select('*').from('users').where({ id: id })
 		.then(user => {
 			if (user.length) {
-				res.json(user[0]);
+				return res.json(user[0]);
 			} else {
-				res.status(404).json('not found');
+				return res.status(404).json('not found');
 			}
 		})
 		.catch(res.status(400).json('unable to work with database'))

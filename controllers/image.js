@@ -21,9 +21,9 @@ const handleImage = (req, res, db) => {
 		.returning('entries')
 		.then(entries => {
 			if (entries.length) {
-				res.json(entries[0]);
+				return res.json(entries[0]);
 			} else {
-				res.status(404).json('not found');
+				return res.status(404).json('not found');
 			}
 		})
 		.catch(res.status(400).json('unable to work with database'))
