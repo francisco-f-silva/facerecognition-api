@@ -16,11 +16,9 @@ const handleImage = (req, res, db) => {
 	const { id } = req.body;
 	// UPDATE users SET entries = entries + 1 WHERE id = ...;
 	db('users')
-		.returning('entries')
 		.where({id}) //same as .where({ id: id }) or as .where('id', '=', 'id')
-		.update({
-			entries: db.raw('entries + 1')
-		})
+		.increment('entries', 1)
+		.returning('entries')
 		.then(entries => {
 			if (entries.length) {
 				res.json(entries[0]);
